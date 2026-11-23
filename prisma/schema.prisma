@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum ChatType {
+  DIRECT
+  GROUP
+}
+
+enum MemberRole {
+  ADMIN
+  MEMBER
+}
+
+model User {
+  id           Int          @id @default(autoincrement())
+  name         String       @db.VarChar(100)
+  createdAt    DateTime     @default(now())
+  memberships  ChatMember[]
+  createdChats Chat[]       @relation("ChatCreator")
+
+  @@map("users")
+}
+
+model Chat {
+  id          Int          @id @default(autoincrement())
+  type        ChatType
+  name        String?      @db.VarChar(100)
+  // "<smallerUserId>_<largerUserId>" for 1:1 chats. Unique, so the same pair can never get two chats.
+  directKey   String?      @unique @db.VarChar(64)
+  createdById Int
+  createdAt   DateTime     @default(now())
+  createdBy   User         @relation("ChatCreator", fields: [createdById], references: [id])
+  members     ChatMember[]
+
+  @@map("chats")
+}
+
+model ChatMember {
+  chatId   Int
+  userId   Int
+  role     MemberRole @default(MEMBER)
+  joinedAt DateTime   @default(now())
+  chat     Chat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([chatId, userId])
+  @@index([userId])
+  @@map("chat_members")
+}
